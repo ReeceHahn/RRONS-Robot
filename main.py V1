@@ -1,0 +1,38 @@
+import time
+import board
+import pwmio
+import digitalio
+import busio
+import adafruit_tca9548a
+import adafruit_vl6180x
+import motors
+import sensors
+import encoders
+
+#Define Button
+button = digitalio.DigitalInOut(board.GP19)
+button.direction = digitalio.Direction.INPUT
+button.pull = digitalio.Pull.DOWN
+
+#Define LED
+led = digitalio.DigitalInOut(board.LED)
+led.switch_to_output()
+
+#Global Variables
+start = True
+
+#Main Function
+def main():
+    if sensors.middle_distance() > 60:
+        motors.forward(0.2)
+    else:
+        motors.stop()
+        
+    print("Left: {}, Right: {}\n".format(encoders.left_rps(), encoders.right_rps()))
+
+#Main Loop
+while True:            
+    if start:
+        main()
+    else:
+        motors.stop()
