@@ -1,10 +1,6 @@
 import time
 import board
-import pwmio
 import digitalio
-import busio
-import adafruit_tca9548a
-import adafruit_vl6180x
 import motors
 import sensors
 import encoders
