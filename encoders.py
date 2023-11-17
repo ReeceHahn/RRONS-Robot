@@ -1,76 +1,32 @@
-import board
-import pulseio
 import time
+import board
+import rotaryio
 
-#Define pulsein objects to count encoder A pin pulses (B is ignored since we are not concerned about direction)
-encoder1 = pulseio.PulseIn(board.GP12, maxlen=10000)
-encoder2 = pulseio.PulseIn(board.GP20, maxlen=10000)
+#Create RotaryIO objects for both encoders
+encoder1 = rotaryio.IncrementalEncoder(board.GP12, board.GP11)
+encoder2 = rotaryio.IncrementalEncoder(board.GP20, board.GP21)
 
-#Initialise previous time variables
-encoder1_previous_time = time.monotonic()
-encoder2_previous_time = time.monotonic()
+#Global Variables
+prev_time1 = 0
+prev_time2 = 0
 
-#Define encoder pulses per revolution
-pulses_per_revolution = 300 #This value was determined experimentally, I can't find the true value anywhere on the encoder website as there is no datasheet available to my knowledge
+prev_position1 = encoder1.position
+prev_position2 = encoder2.position
 
-def calculate_rps(count, time_interval):
-    if time_interval != 0:
-        revolutions = count / pulses_per_revolution
-        rps = revolutions / time_interval
-        return rps
-    else:
-        return 0
-
+#Function to get the RPS value for encoder 1
 def left_rps():
-    global encoder1_previous_time
-    
-    #Pause pulse counter
-    encoder1.pause()
-    
-    #Count the pulses
-    encoder1_count = len(encoder1)
-    
-    #Calculate the time interval between the previous count
-    current_time = time.monotonic()
-    time_interval = current_time - encoder1_previous_time
-
-    #Calculate RPS
-    rps = calculate_rps(encoder1_count, time_interval)
-
-    #Clear the pulse counter
-    encoder1.clear()
-    
-    #Reset the previous time
-    encoder1_previous_time = current_time
-    
-    #Resume the pulse counter
-    encoder1.resume()
-    
+    global prev_time1, prev_position1
+    revolutions = (encoder1.position - prev_position1) / 300
+    rps = revolutions / (time.monotonic() - prev_time1)
+    prev_time1 = time.monotonic()
+    prev_position1 = encoder1.position
     return rps
 
+#Function to get the RPS value for encoder 2
 def right_rps():
-    global encoder2_previous_time
-    
-    #Pause pulse counter
-    encoder2.pause()
-    
-    #Count the pulses
-    encoder2_count = len(encoder2)
-    
-    #Calculate the time interval between the previous count
-    current_time = time.monotonic()
-    time_interval = current_time - encoder2_previous_time
-
-    #Calculate RPS
-    rps = calculate_rps(encoder2_count, time_interval)
-
-    #Clear the pulse counter
-    encoder2.clear()
-    
-    #Reset the previous time
-    encoder2_previous_time = current_time
-    
-    #Resume the pulse counter
-    encoder2.resume()
-    
+    global prev_time2, prev_position2
+    revolutions = (encoder2.position - prev_position2) / 300
+    rps = revolutions / (time.monotonic() - prev_time2)
+    prev_time2 = time.monotonic()
+    prev_position2 = encoder2.position
     return rps
