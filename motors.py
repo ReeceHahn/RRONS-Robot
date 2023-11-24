@@ -1,6 +1,7 @@
 import board
 import pwmio
 import digitalio
+import time
 
 #Define Left Motor
 motor1_pwm = pwmio.PWMOut(board.GP13)
@@ -42,31 +43,22 @@ def motor2_speed(speed):
         motor2_direction2.value = False
     motor2_pwm.duty_cycle = int(abs(speed) * 65535)
     
-    
 #Function to control both motor speeds
 def speed(speedleft, speedright):
     motor1_speed(speedleft)
     motor2_speed(speedright)
+        
+#Function to turn 90 degrees clockwise
+def clockwise(speed1, turntime):
+    speed(speed1, -speed1)
+    
+    time.sleep(turntime)
 
-#Function to make both motors traverse forward
-def forward(speed):
-    if speed > 0:
-        motor1_direction1.value = True
-        motor1_direction2.value = False
-        motor2_direction1.value = True
-        motor2_direction2.value = False
-        motor1_pwm.duty_cycle = int(abs(speed) * 65535)
-        motor2_pwm.duty_cycle = int(abs(speed) * 65535)
-
-#Function to make both motors traverse backward
-def backward(speed):
-    if speed > 0:
-        motor1_direction1.value = False
-        motor1_direction2.value = True
-        motor2_direction1.value = False
-        motor2_direction2.value = True
-        motor1_pwm.duty_cycle = int(abs(speed) * 65535)
-        motor2_pwm.duty_cycle = int(abs(speed) * 65535)
+#Function to turn 90 degrees anticlockwise
+def anticlockwise(speed1, turntime):
+    speed(-speed1, speed1)
+    
+    time.sleep(turntime)
 
 #Function to make both motors stop
 def stop():
