@@ -20,7 +20,7 @@ def left_distance():
     return sensor1.range
 
 #Return the reading on the middle sensor
-def middle_distance():
+def front_distance():
     return sensor2.range
 
 #Return the reading on the right sensor
