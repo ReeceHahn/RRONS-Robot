@@ -20,7 +20,7 @@ def left_rps():
     rps = revolutions / (time.monotonic() - prev_time1)
     prev_time1 = time.monotonic()
     prev_position1 = encoder1.position
-    return rps
+    return abs(rps)
 
 #Function to get the RPS value for encoder 2
 def right_rps():
@@ -29,4 +29,4 @@ def right_rps():
     rps = revolutions / (time.monotonic() - prev_time2)
     prev_time2 = time.monotonic()
     prev_position2 = encoder2.position
-    return rps
+    return abs(rps)
