@@ -1,0 +1,137 @@
+import time
+import math
+import board
+import digitalio
+import motors
+import sensors
+import encoders
+import switch
+import PID
+
+#Define LED
+led = digitalio.DigitalInOut(board.LED)
+led.switch_to_output()
+
+#Global Variables
+pwm = 0.35
+calibrate = False
+ACW_turntime = 0.72
+CW_turntime = 0.75
+forward1_time = 0.8
+forward2_time = 0.8
+calibration_threshold = 0.06
+
+#Calibration Function
+def calibration():
+    global ACW_turntime, CW_turntime, forward1_time, forward2_time 
+    
+    initial_left = sensors.left_distance()
+    initial_left_LB = (1 - calibration_threshold)*initial_left
+    initial_left_UB = (1 + calibration_threshold)*initial_left
+    
+    initial_front = sensors.front_distance()
+    initial_front_LB = (1 - calibration_threshold)*initial_front
+    initial_front_UB = (1 + calibration_threshold)*initial_front
+    
+    initial_right = sensors.right_distance()
+    initial_right_LB = (1 - calibration_threshold)*initial_right
+    initial_right_UB = (1 + calibration_threshold)*initial_right
+        
+    ACW_start = time.monotonic()
+    
+    motors.speed(pwm, -pwm)
+    
+    time.sleep(0.2)
+    
+    while not ((initial_left_LB <= sensors.left_distance() <= initial_left_UB) and (initial_front_LB <= sensors.front_distance() <= initial_front_UB) and (initial_right_LB <= sensors.right_distance() <= initial_right_UB)):
+        pass
+    
+    motors.stop()
+    
+    ACW_duration = time.monotonic() - ACW_start
+    
+    ACW_turntime = ACW_duration / 4
+    
+    #initial_left = sensors.left_distance()
+    #initial_left_LB = (1 - calibration_threshold)*initial_left
+    #initial_left_UB = (1 + calibration_threshold)*initial_left
+    
+    #initial_front = sensors.front_distance()
+    #initial_front_LB = (1 - calibration_threshold)*initial_front
+    #initial_front_UB = (1 + calibration_threshold)*initial_front
+    
+    #initial_right = sensors.right_distance()
+    #initial_right_LB = (1 - calibration_threshold)*initial_right
+    #initial_right_UB = (1 + calibration_threshold)*initial_right
+    
+    CW_rps = []
+    
+    CW_start = time.monotonic()
+    
+    motors.speed(-pwm, pwm)
+    
+    time.sleep(0.2)
+    
+    while not ((initial_left_LB <= sensors.left_distance() <= initial_left_UB) and (initial_front_LB <= sensors.front_distance() <= initial_front_UB) and (initial_right_LB <= sensors.right_distance() <= initial_right_UB)):
+        left_rps = encoders.left_rps()
+        right_rps = encoders.right_rps()
+        
+        if (left_rps != 0) and (right_rps != 0):
+            CW_rps.append((left_rps, right_rps))
+        
+    total_leftrps = 0
+    total_rightrps = 0  
+    
+    for leftrps, rightrps in CW_rps:
+        total_leftrps += leftrps
+        total_rightrps += rightrps
+        
+    avg_leftrps = total_leftrps / len(CW_rps)
+    avg_rightrps = total_rightrps / len(CW_rps)
+    
+    motors.stop()
+    
+    CW_duration = time.monotonic() - CW_start
+    
+    CW_turntime = CW_duration / 4
+    
+    forward_chassis_rps = avg_leftrps + avg_rightrps / 2
+    
+    forward_chassis_speed = (4 * math.pi * forward_chassis_rps) #this is in cm/s
+    
+    forward1_time = 11 / forward_chassis_speed #time to move forward 11cm
+    
+    forward2_time = 15 / forward_chassis_speed #time to move forward 15cm
+
+#Main Function
+def main():    
+    left = sensors.left_distance()
+    front = sensors.front_distance()
+    right = sensors.right_distance()
+    
+    leftrps = encoders.left_rps()
+    rightrps = encoders.right_rps()
+        
+    if left > 110:
+        motors.speed(pwm, pwm)
+        time.sleep(forward1_time)
+        motors.anticlockwise(pwm, ACW_turntime)
+        motors.speed(pwm, pwm)
+        time.sleep(forward2_time)
+    else:
+        if front > 27:
+            PID.Calculate_PID(left)
+        else:
+            motors.clockwise(pwm, CW_turntime)
+    
+#Main Loop
+while True:
+    if switch.value():
+        if calibrate:
+            calibration()
+            calibrate = False
+        else:
+            main()
+    else:
+        motors.stop()
+        calibrate = False
