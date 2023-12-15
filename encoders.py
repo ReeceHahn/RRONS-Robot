@@ -3,8 +3,8 @@ import board
 import rotaryio
 
 #Create RotaryIO objects for both encoders
-encoder1 = rotaryio.IncrementalEncoder(board.GP12, board.GP11)
-encoder2 = rotaryio.IncrementalEncoder(board.GP20, board.GP21)
+encoder1 = rotaryio.IncrementalEncoder(board.GP17, board.GP16)
+encoder2 = rotaryio.IncrementalEncoder(board.GP28, board.GP27)
 
 #Global Variables
 prev_time1 = 0
