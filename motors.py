@@ -4,17 +4,17 @@ import digitalio
 import time
 
 #Define Left Motor
-motor1_pwm = pwmio.PWMOut(board.GP13)
-motor1_direction1 = digitalio.DigitalInOut(board.GP14)
+motor1_pwm = pwmio.PWMOut(board.GP26)
+motor1_direction1 = digitalio.DigitalInOut(board.GP21)
 motor1_direction1.direction = digitalio.Direction.OUTPUT
-motor1_direction2 = digitalio.DigitalInOut(board.GP15)
+motor1_direction2 = digitalio.DigitalInOut(board.GP22)
 motor1_direction2.direction = digitalio.Direction.OUTPUT
 
 #Define Right Motor
-motor2_pwm = pwmio.PWMOut(board.GP16)
-motor2_direction1 = digitalio.DigitalInOut(board.GP17)
+motor2_pwm = pwmio.PWMOut(board.GP18)
+motor2_direction1 = digitalio.DigitalInOut(board.GP20)
 motor2_direction1.direction = digitalio.Direction.OUTPUT
-motor2_direction2 = digitalio.DigitalInOut(board.GP18)
+motor2_direction2 = digitalio.DigitalInOut(board.GP19)
 motor2_direction2.direction = digitalio.Direction.OUTPUT
 
 #Function to control motor 1 speed
@@ -33,11 +33,11 @@ def motor1_speed(speed):
 #Function to control motor 2 speed
 def motor2_speed(speed):
     if speed > 0:
-        motor2_direction1.value = True
-        motor2_direction2.value = False
-    elif speed < 0:
         motor2_direction1.value = False
         motor2_direction2.value = True
+    elif speed < 0:
+        motor2_direction1.value = True
+        motor2_direction2.value = False
     else:
         motor2_direction1.value = False
         motor2_direction2.value = False
