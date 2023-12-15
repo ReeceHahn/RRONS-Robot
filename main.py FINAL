@@ -1,0 +1,235 @@
+import time
+import math
+import board
+import digitalio
+import motors
+import sensors
+import encoders
+import switch
+import PID
+import maze
+
+#Global Variables
+pwm = 0.45
+ACW_turntime = 0.48
+CW_turntime = 0.44
+forward1_time = 0.48
+forward2_time = 0.4
+create_start_node = True
+switch_counter = 0
+right_turn_counter = 0 
+prev_node_time = 0
+current_node_time = 0
+current_position = (0, 0)
+directions = ['up', 'left', 'down', 'right']
+direction_count = 0 
+current_direction = directions[0]
+left_following = True
+second_pass = False
+calculate_maze = True
+
+#temp
+doOnce1 = True
+
+#Victory dance
+def victory_dance():
+    motors.stop()
+
+#Left wall follower
+def left_follow():
+    global prev_node_time, current_node_time, direction_count, current_direction, left_following, right_turn_counter
+    
+    left = sensors.left_distance()
+    front = sensors.front_distance()
+    right = sensors.right_distance()
+    
+    if left_following:
+        
+        #check left sensor, if it is greater than 100mm
+        if left > 90:
+            #reset right turn counter
+            right_turn_counter = 0
+            
+            #go forward for forward1_time
+            motors.speed(pwm, pwm)
+            time.sleep(forward1_time)
+            
+            #record current time
+            current_node_time = time.monotonic()
+            
+            #create node, passing through the elapsed time between current node and prev node
+            maze.add_node((current_node_time - prev_node_time), current_direction)
+            maze.add_edge()
+
+            #update new direction
+            direction_count = (direction_count + 1) % len(directions)
+            current_direction = directions[direction_count]
+            
+            #make the turn
+            motors.anticlockwise(pwm, ACW_turntime)
+            
+            #record the time for future distance calculation
+            prev_node_time = time.monotonic()
+            
+            #go forward for forward2_time
+            motors.speed(pwm, pwm)
+            time.sleep(forward2_time)
+        
+        #if left sensor is lower than 100mm
+        else:
+            #check front sensor, if it is greater than 45mm
+            if front > 45:
+                #perform PID, keep it straight following left wall
+                PID.left_PID(left, 40)
+            #if front sensor is lower than 45mm
+            else:
+                #if right sensor is greater than 168mm
+                if right > 168:
+                    #increment right turn counter
+                    right_turn_counter += 1
+                    
+                #calculate time it took to get to this node from previous node
+                current_node_time = time.monotonic()
+                
+                #add a node in the graph (duplicates are checked for)
+                maze.add_node((current_node_time - prev_node_time), current_direction)
+                
+                #add an edge connecting the current node to previous node (duplicates are checked for)
+                maze.add_edge()
+
+                #update new direction
+                direction_count = (direction_count - 1) % len(directions)
+                current_direction = directions[direction_count]
+                
+                #rotate clockwise for CW_turntime seconds
+                motors.clockwise(pwm, CW_turntime)
+                
+                #take note of the time after the rotation for future node calculations
+                prev_node_time = time.monotonic()
+                
+        if right_turn_counter > 2:
+            maze.add_node(1.15 , current_direction)
+            maze.add_edge()
+            left_following = False
+
+    else:
+        motors.stop()
+        
+def solve_maze():
+    global current_direction
+    
+    current_direction = 'up'
+    
+    for i in range(0, len(path)-1):
+        x_difference = path[i][0] - path[i+1][0]
+        y_difference = path[i][1] - path[i+1][1]
+        
+        timer = time.monotonic()
+        
+        if x_difference != 0:
+            if x_difference > 0:
+                if current_direction == 'up':
+                    motors.anticlockwise(pwm, 2*ACW_turntime)
+                elif current_direction == 'left':
+                    motors.anticlockwise(pwm, ACW_turntime)
+                elif current_direction == 'right':
+                    motors.clockwise(pwm, CW_turntime)
+                    
+                current_direction = 'down'
+                
+                move_forward(timer, abs(x_difference)*1.45)
+                
+            else:
+                if current_direction == 'down':
+                    motors.anticlockwise(pwm, 2*ACW_turntime)
+                elif current_direction == 'left':
+                    motors.clockwise(pwm, CW_turntime)
+                elif current_direction == 'right':
+                    motors.anticlockwise(pwm, ACW_turntime)
+                    
+                current_direction = 'up'
+                
+                move_forward(timer, abs(x_difference)*1.45)
+                
+        else:
+            if y_difference > 0:
+                if current_direction == 'up':
+                    motors.anticlockwise(pwm, ACW_turntime)
+                elif current_direction == 'down':
+                    motors.clockwise(pwm, CW_turntime)
+                elif current_direction == 'right':
+                    motors.anticlockwise(pwm, 2*ACW_turntime)
+                    
+                current_direction = 'left'
+                
+                move_forward(timer, abs(y_difference)*1.45)
+                
+            else:
+                if current_direction == 'up':
+                    motors.clockwise(pwm, CW_turntime)
+                elif current_direction == 'down':
+                    motors.anticlockwise(pwm, ACW_turntime)
+                elif current_direction == 'left':
+                    motors.anticlockwise(pwm, 2*ACW_turntime)
+                    
+                current_direction = 'right'
+                
+                move_forward(timer, abs(y_difference)*1.45)
+                                
+def move_forward(timer, time_limit):
+    while (time.monotonic() - timer) <= time_limit:
+        left = sensors.left_distance()
+        front = sensors.front_distance()
+        right = sensors.right_distance()
+        
+        if front < 35:
+            motors.stop()
+        else:
+            if right < 75:
+                PID.right_PID(right, 50)
+            else:
+                motors.speed(pwm, pwm)
+            
+    motors.stop()
+    
+#Main Loop
+while True:
+    if switch.value():
+        if doOnce1:
+            switch_counter += 1
+            doOnce1 = False
+        
+        if switch_counter == 1:
+            #perform first pass of maze
+            if create_start_node:
+                maze.add_node(0, 'up')
+                prev_node_time = time.monotonic()
+                create_start_node = False
+            else:
+                left_follow()
+        
+        else:
+            #perform second pass of maze
+            if second_pass:
+                solve_maze()
+                second_pass = False
+                
+            victory_dance()
+            
+    else:
+        if switch_counter == 0:
+            motors.stop()
+        else:
+            motors.stop()
+            
+            if calculate_maze:
+                start_node = maze.maze[0]
+                end_node = maze.find_end_node()
+                
+                path = maze.dijkstra_shortest_path(start_node, end_node)
+                
+                second_pass = True
+                
+                doOnce1 = True
+                
+                calculate_maze = False
